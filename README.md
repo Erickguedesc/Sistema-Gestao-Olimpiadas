@@ -208,5 +208,6 @@ Além do quadro geral de medalhas, comitês olímpicos nacionais, jornalistas e 
  
 ## Tecnologias
  
-- [PlantUML](https://plantuml.com/) — modelagem dos diagramas UML
- 
+- [PlantUML](https://plantuml.com/) — utilizado para modelagem dos diagramas UML por meio de código PUML.
+- [Draw.io / Diagrams.net](https://app.diagrams.net/) — utilizado para modelagem visual do Diagrama de Caso de Uso.
+- Projeto PlantUML API em Python — ferramenta desenvolvida para automatizar a geração de diagramas UML a partir de códigos PlantUML, com suporte à leitura de arquivos `.puml`, requisições à API do PlantUML e salvamento dos diagramas gerados.
