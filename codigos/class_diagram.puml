@@ -1,0 +1,96 @@
+@startuml diagrama-de-classes
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam roundcorner 8
+
+skinparam class {
+  BackgroundColor #E1F5EE
+  BorderColor #0F6E56
+  FontColor #04342C
+  ArrowColor #534AB7
+  HeaderBackgroundColor #9FE1CB
+}
+
+abstract class Pessoa {
+  - id: Long
+  - nome: String
+  - dataNascimento: Date
+  + getNome(): String
+  + getId(): Long
+}
+
+class Atleta {
+  - nacionalidade: String
+  - numeroRegistro: String
+  + inscrever(c: Competicao): void
+  + consultarClassificacao(): List<Resultado>
+}
+
+class Competicao {
+  - id: Long
+  - nome: String
+  - modalidade: String
+  - data: Date
+  - horario: Time
+  - status: String
+  + cadastrar(): void
+  + listarAtletas(): List<Atleta>
+  + encerrar(): void
+}
+
+class Local {
+  - id: Long
+  - nome: String
+  - endereco: String
+  - capacidade: int
+  + verificarDisponibilidade(data: Date, horario: Time): boolean
+  + alocar(c: Competicao): void
+}
+
+class Inscricao {
+  - id: Long
+  - dataInscricao: Date
+  - status: String
+  + confirmar(): void
+  + cancelar(): void
+}
+
+class Resultado {
+  - id: Long
+  - primeiroLugar: Atleta
+  - segundoLugar: Atleta
+  - terceiroLugar: Atleta
+  - dataRegistro: Date
+  + registrar(): void
+  + consultarClassificacao(): void
+}
+
+class Pais {
+  - id: Long
+  - nome: String
+  - sigla: String
+  - quantOuro: int
+  - quantPrata: int
+  - quantBronze: int
+  + gerarRelatorio(): void
+  + consultarMedalhas(): List<Resultado>
+}
+
+Pessoa <|-- Atleta
+
+Competicao "1" *-- "0..*" Inscricao
+Competicao "0..*" --> "1" Local : realizada em
+Competicao "1" --> "0..1" Resultado : gera
+
+Atleta "1" --> "0..*" Inscricao : realiza
+Atleta "0..*" --> "1" Pais : representa
+
+Resultado --> Atleta : 1º lugar
+Resultado --> Atleta : 2º lugar
+Resultado --> Atleta : 3º lugar
+
+Pais "1" --> "0..*" Resultado : contabiliza
+
+@enduml
