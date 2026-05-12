@@ -1,0 +1,73 @@
+@startuml diagrama-de-pacotes
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam roundcorner 8
+
+skinparam package {
+  BackgroundColor #EEEDFE
+  BorderColor #534AB7
+  FontColor #26215C
+}
+
+skinparam class {
+  BackgroundColor #E1F5EE
+  BorderColor #0F6E56
+  FontColor #04342C
+}
+
+package "Gestão de Competições" {
+  class Competicao {
+    - nome: String
+    - modalidade: String
+    - data: Date
+    + cadastrar(): void
+    + encerrar(): void
+  }
+  class Local {
+    - nome: String
+    - capacidade: int
+    + alocar(): void
+    + verificarDisponibilidade(): boolean
+  }
+}
+
+package "Inscrições" {
+  class Atleta {
+    - nome: String
+    - nacionalidade: String
+    + inscrever(): void
+  }
+  class Inscricao {
+    - dataInscricao: Date
+    - status: String
+    + confirmar(): void
+    + cancelar(): void
+  }
+}
+
+package "Resultados" {
+  class Resultado {
+    - dataRegistro: Date
+    + registrar(): void
+    + consultarClassificacao(): void
+  }
+}
+
+package "Relatórios" {
+  class Pais {
+    - nome: String
+    - quantOuro: int
+    - quantPrata: int
+    - quantBronze: int
+    + gerarRelatorio(): void
+  }
+}
+
+"Gestão de Competições" ..> "Inscrições" : usa
+"Inscrições" ..> "Resultados" : gera
+"Resultados" ..> "Relatórios" : atualiza
+"Inscrições" ..> "Relatórios" : contabiliza medalhas
+
+@enduml
