@@ -188,7 +188,7 @@ Além do quadro geral de medalhas, comitês olímpicos nacionais, jornalistas e 
  
 ### Diagrama de Classes
  
-<img width="700px" src="https://github.com/Erickguedesc/Sistema-Gestao-Olimpiadas/blob/main/imagens/diagrama-de-classes.png?raw=true"/>
+<img width="700px" src="https://github.com/Erickguedesc/Sistema-Gestao-Olimpiadas/blob/main/imagens/class_diagram.png?raw=true"/>
 ---
  
 ### Diagrama de Pacotes
