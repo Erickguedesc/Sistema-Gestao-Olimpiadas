@@ -1,0 +1,237 @@
+
+@startuml diagrama-de-implantacao
+
+!theme plain
+skinparam defaultFontName Arial
+skinparam backgroundColor #FAFAFA
+skinparam node {
+    BackgroundColor #EEF4FF
+    BorderColor #4A6CF7
+}
+skinparam database {
+    BackgroundColor #FFF4E6
+    BorderColor #E08020
+}
+skinparam artifact {
+    BackgroundColor #F0FFF0
+    BorderColor #2E8B57
+}
+skinparam cloud {
+    BackgroundColor #F5F5FF
+    BorderColor #7070C0
+}
+
+title Sistema de Gestão das Olimpíadas — Diagrama de Implantação
+
+' ==========================================
+' DISPOSITIVOS DOS USUÁRIOS
+' ==========================================
+node "Dispositivos dos Usuários" {
+    node "Navegador Web\n(Chrome / Firefox / Safari)" as Browser {
+        artifact "Web App\n[Next.js / React]" as WebAppArtifact
+    }
+    node "Smartphone / Tablet\n(iOS / Android)" as Mobile {
+        artifact "App Mobile\n[React Native]" as MobileArtifact
+    }
+    node "Estação Admin\n(Comitê Olímpico)" as AdminStation {
+        artifact "Painel Admin\n[Dashboard SPA]" as AdminArtifact
+    }
+}
+
+' ==========================================
+' CAMADA DE BORDA (CDN + WAF)
+' ==========================================
+cloud "AWS CloudFront (CDN / Edge Locations)" as CDNCloud {
+    node "Edge Node — São Paulo" as EdgeSP {
+        artifact "Cache de Ativos\n[JS, CSS, Imagens]" as EdgeCache
+    }
+    node "Edge Node — Nova York" as EdgeNY {
+        artifact "Cache de Ativos\n[JS, CSS, Imagens]" as EdgeCacheNY
+    }
+    node "AWS WAF" as WAFNode {
+        artifact "Regras de Segurança\n[Rate Limit, OWASP]" as WAFRules
+    }
+}
+
+' ==========================================
+' REGIÃO PRIMÁRIA AWS — us-east-1
+' ==========================================
+cloud "AWS us-east-1 (Região Primária)" {
+
+    ' --- VPC Pública ---
+    node "VPC — Sub-rede Pública" {
+        node "AWS Application Load Balancer\n(Multi-AZ)" as ALB {
+            artifact "Listener HTTPS :443\n[SSL Termination]" as ALBListener
+        }
+        node "API Gateway\n(Kong / AWS API GW)" as APIGW_Node {
+            artifact "Rate Limiting\nAutenticação JWT\nRoteamento" as APIGWArtifact
+        }
+    }
+
+    ' --- EKS Cluster (Kubernetes) ---
+    node "Amazon EKS Cluster\n(Kubernetes — 3 AZs)" as EKS {
+
+        node "Node Pool — Microsserviços" as NodeMS {
+            artifact "Pod: Serviço de Competições\n[3 réplicas]" as PodComp
+            artifact "Pod: Serviço de Atletas\n[3 réplicas]" as PodAtleta
+            artifact "Pod: Serviço de Locais\n[2 réplicas]" as PodLocal
+            artifact "Pod: Serviço de Resultados\n[3 réplicas]" as PodResult
+            artifact "Pod: Serviço de Países\n[2 réplicas]" as PodPais
+        }
+
+        node "Node Pool — Suporte" as NodeSup {
+            artifact "Pod: Auth (OAuth2/JWT)\n[2 réplicas]" as PodAuth
+            artifact "Pod: Notificações\n[2 réplicas]" as PodNotif
+            artifact "Pod: Busca (Elasticsearch)\n[2 réplicas]" as PodBusca
+        }
+
+        node "Redis Cluster\n(ElastiCache)" as RedisNode {
+            database "Cache L1\n[Sessões / Hot Data]" as RedisDB
+        }
+    }
+
+    ' --- Funções Lambda ---
+    node "AWS Lambda\n(Serverless)" as LambdaCluster {
+        artifact "λ Gerador de Relatórios PDF" as LambdaPDF
+        artifact "λ Validador de Conflitos" as LambdaConf
+        artifact "λ Processador de Medalhas" as LambdaMed
+        artifact "λ Notificador de Resultados" as LambdaNotifFn
+    }
+
+    ' --- Mensageria ---
+    node "Mensageria & Eventos" as MsgNode {
+        node "Amazon MSK\n(Apache Kafka Gerenciado)" as KafkaNode {
+            artifact "Tópico: resultado.registrado\nTópico: atleta.inscrito\nTópico: competicao.atualizada" as KafkaTopics
+        }
+        node "Amazon SQS\n(Filas de E-mails)" as SQSNode {
+            artifact "Fila: email-notificacoes\nFila: push-notificacoes" as SQSQueues
+        }
+        node "Amazon EventBridge" as EventBridgeNode {
+            artifact "Event Bus: sgo-eventos\n[Regras de roteamento]" as EventBridgeArtifact
+        }
+    }
+
+    ' --- Bancos de Dados ---
+    node "Camada de Dados — RDS Multi-AZ" as RDSNode {
+        database "RDS PostgreSQL\nDB Competições & Locais\n[Primary + 1 Read Replica]" as DBComp
+        database "RDS PostgreSQL\nDB Atletas & Países\n[Primary + 1 Read Replica]" as DBAtleta
+        database "RDS PostgreSQL\nDB Resultados\n[Primary + 1 Read Replica]" as DBResult
+    }
+
+    node "Amazon Redshift\n(Data Warehouse Analítico)" as Redshift {
+        database "DW: Medalhas\nRankings & Relatórios" as DWDB
+    }
+
+    node "Amazon S3" as S3Node {
+        artifact "Bucket: relatórios-pdf\nBucket: midias-olimpicas\nBucket: backups-db" as S3Buckets
+    }
+
+    ' --- Observabilidade ---
+    node "Observabilidade" as ObsNode {
+        artifact "Amazon CloudWatch\n[Logs & Métricas]" as CW
+        artifact "AWS X-Ray / Datadog\n[APM & Tracing]" as APMNode
+        artifact "PagerDuty\n[Alertas & On-call]" as PD
+    }
+
+    ' --- Serviços de Comunicação ---
+    node "Notificações Externas" as ExtNotif {
+        artifact "Amazon SES\n[E-mails transacionais]" as SES
+        artifact "Amazon SNS\n[Push & SMS]" as SNS
+    }
+}
+
+' ==========================================
+' REGIÃO DE DR — sa-east-1 (São Paulo)
+' ==========================================
+cloud "AWS sa-east-1 (DR — Disaster Recovery)" as DRRegion {
+    node "RDS Read Replica\n[Cross-region replication]" as DRReplica {
+        database "Réplica PostgreSQL\n[RPO < 5 min]" as DRDB
+    }
+    node "S3 Cross-Region\nReplication" as DRS3 {
+        artifact "Bucket Réplica\n[Relatórios & Backups]" as DRS3Art
+    }
+}
+
+' ==========================================
+' CI/CD
+' ==========================================
+node "Pipeline CI/CD\n(GitHub Actions + AWS CodeDeploy)" as CICD {
+    artifact "Build → Test → Push ECR\nDeploy → EKS Rolling Update" as CICDArt
+}
+
+' ==========================================
+' COMUNICAÇÕES
+' ==========================================
+
+' Usuários → CDN
+Browser        --> CDNCloud : HTTPS
+Mobile         --> CDNCloud : HTTPS
+AdminStation   --> CDNCloud : HTTPS
+
+' CDN → ALB
+CDNCloud --> ALB : HTTPS (origem)
+
+' ALB → APIGW
+ALB --> APIGW_Node : HTTP/2
+
+' APIGW → Auth
+APIGW_Node --> PodAuth : valida JWT
+
+' APIGW → Pods
+APIGW_Node --> PodComp
+APIGW_Node --> PodAtleta
+APIGW_Node --> PodLocal
+APIGW_Node --> PodResult
+APIGW_Node --> PodPais
+
+' Pods → Cache
+PodComp   --> RedisDB
+PodAtleta --> RedisDB
+PodResult --> RedisDB
+
+' Pods → BD
+PodComp   --> DBComp
+PodAtleta --> DBAtleta
+PodResult --> DBResult
+PodLocal  --> DBComp
+
+' Pods → Mensageria
+PodResult --> KafkaTopics
+PodAtleta --> KafkaTopics
+PodComp   --> EventBridgeArtifact
+
+' Kafka → Lambda
+KafkaTopics         --> LambdaMed
+KafkaTopics         --> LambdaNotifFn
+EventBridgeArtifact --> LambdaConf
+
+' Lambda → Downstream
+LambdaPDF    --> S3Buckets
+LambdaMed    --> DWDB
+LambdaNotifFn --> SQSQueues
+LambdaConf   --> PodLocal : retorna validação
+
+' SQS → Notificações
+SQSQueues --> PodNotif
+PodNotif  --> SES
+PodNotif  --> SNS
+
+' Busca
+PodAtleta --> PodBusca
+PodComp   --> PodBusca
+APIGW_Node --> PodBusca
+
+' Observabilidade
+EKS        ..> CW
+LambdaCluster ..> CW
+EKS        ..> APMNode
+CW         --> PD
+
+' DR
+DBComp  --> DRDB    : replicação async
+S3Buckets --> DRS3Art : replicação
+
+' CI/CD
+CICD --> EKS : deploy
+
+@enduml

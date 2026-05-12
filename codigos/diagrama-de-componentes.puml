@@ -1,0 +1,170 @@
+@startuml diagrama-de-componentes
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+skinparam backgroundColor #FAFAFA
+skinparam component {
+    BackgroundColor #EEF4FF
+    BorderColor #4A6CF7
+    FontColor #1A2B6D
+}
+skinparam interface {
+    BackgroundColor #FFFFFF
+    BorderColor #888888
+}
+
+title Sistema de Gestão das Olimpíadas — Diagrama de Componentes
+
+' ==========================================
+' FRONTEND / CLIENTES
+' ==========================================
+package "Camada de Apresentação" {
+    [Web App\n(React / Next.js)] as WebApp
+    [App Mobile\n(React Native)] as MobileApp
+    [Painel Admin\n(Dashboard)] as AdminPanel
+}
+
+' ==========================================
+' API GATEWAY / LOAD BALANCER
+' ==========================================
+package "Borda e Roteamento" {
+    [Load Balancer\n(AWS ALB / NGINX)] as LB
+    [API Gateway\n(Kong / AWS API GW)] as APIGW
+    [CDN\n(CloudFront)] as CDN
+    [WAF\n(Web App Firewall)] as WAF
+}
+
+' ==========================================
+' MICROSERVIÇOS PRINCIPAIS
+' ==========================================
+package "Microsserviços de Domínio" {
+    [Serviço de Competições] as SvcComp
+    [Serviço de Atletas\n& Inscrições] as SvcAtleta
+    [Serviço de Locais\n& Alocação] as SvcLocal
+    [Serviço de Resultados\n& Medalhas] as SvcResult
+    [Serviço de Países\n& Delegações] as SvcPais
+}
+
+' ==========================================
+' FUNÇÕES SERVERLESS (LAMBDA)
+' ==========================================
+package "Funções Serverless (Lambda)" {
+    [λ Gerador de\nRelatórios PDF] as LambdaRelatorio
+    [λ Validador de\nConflitos de Horário] as LambdaConflito
+    [λ Processador de\nMedalhas] as LambdaMedalha
+    [λ Notificador de\nResultados] as LambdaNotif
+}
+
+' ==========================================
+' SERVIÇOS DE SUPORTE
+' ==========================================
+package "Serviços de Suporte" {
+    [Serviço de\nAutenticação (OAuth2/JWT)] as SvcAuth
+    [Serviço de\nNotificações] as SvcNotif
+    [Serviço de\nCache (Redis)] as SvcCache
+    [Serviço de\nBusca (Elasticsearch)] as SvcBusca
+}
+
+' ==========================================
+' MENSAGERIA
+' ==========================================
+package "Mensageria & Eventos" {
+    [Message Broker\n(Apache Kafka)] as Kafka
+    [Fila de E-mails\n(SQS)] as SQS
+    [Event Bus\n(EventBridge)] as EventBus
+}
+
+' ==========================================
+' DADOS
+' ==========================================
+package "Camada de Dados" {
+    database "DB Competições\n(PostgreSQL)" as DBComp
+    database "DB Atletas\n(PostgreSQL)" as DBAtleta
+    database "DB Resultados\n(PostgreSQL)" as DBResult
+    database "Data Warehouse\n(Redshift)" as DW
+    [Object Storage\n(S3 — PDFs/Mídia)] as S3
+}
+
+' ==========================================
+' MONITORAMENTO
+' ==========================================
+package "Observabilidade" {
+    [APM & Tracing\n(Datadog / Jaeger)] as APM
+    [Logs Centralizados\n(CloudWatch)] as Logs
+    [Alertas\n(PagerDuty)] as Alertas
+}
+
+' ==========================================
+' CONEXÕES PRINCIPAIS
+' ==========================================
+
+' Clientes → Borda
+WebApp   --> CDN
+MobileApp --> CDN
+AdminPanel --> CDN
+CDN --> WAF
+WAF --> LB
+LB --> APIGW
+
+' Gateway → Auth
+APIGW --> SvcAuth : valida JWT
+
+' Gateway → Serviços
+APIGW --> SvcComp
+APIGW --> SvcAtleta
+APIGW --> SvcLocal
+APIGW --> SvcResult
+APIGW --> SvcPais
+
+' Serviços → Cache
+SvcComp   --> SvcCache
+SvcAtleta --> SvcCache
+SvcResult --> SvcCache
+
+' Serviços → Banco de Dados
+SvcComp   --> DBComp
+SvcAtleta --> DBAtleta
+SvcResult --> DBResult
+SvcLocal  --> DBComp
+
+' Serviços → Mensageria
+SvcResult --> Kafka : publica ResultadoRegistrado
+SvcAtleta --> Kafka : publica AtletaInscrito
+SvcComp   --> EventBus : publica CompeticiaoAtualizada
+
+' Kafka → Lambdas
+Kafka --> LambdaMedalha
+Kafka --> LambdaNotif
+EventBus --> LambdaConflito
+SvcLocal --> LambdaConflito : valida conflito
+
+' Lambdas → Downstream
+LambdaRelatorio --> S3 : armazena PDF
+LambdaMedalha   --> DW : grava ranking
+LambdaNotif     --> SQS
+
+' SQS → Notificações
+SQS --> SvcNotif
+SvcNotif --> [E-mail\n(SES)] : envia e-mail
+SvcNotif --> [Push / SMS\n(SNS)] : push & SMS
+
+' Admin → Lambda relatório
+AdminPanel --> LambdaRelatorio : solicita relatório
+
+' Busca
+SvcAtleta --> SvcBusca : indexa atleta
+SvcComp   --> SvcBusca : indexa competição
+APIGW     --> SvcBusca : consulta
+
+' DW
+DW --> LambdaRelatorio : dados analíticos
+
+' Observabilidade (todos apontam)
+SvcComp   ..> APM
+SvcAtleta ..> APM
+SvcResult ..> APM
+APIGW     ..> Logs
+APM       --> Alertas
+
+@enduml
