@@ -1,0 +1,46 @@
+@startuml
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrador" as ADM
+actor "Usuário" as USR
+actor "Atleta" as ATL
+actor "Visitante" as VIS
+
+USR <|-- ATL
+USR <|-- VIS
+
+rectangle "SGO — Sistema de Gestão das Olimpíadas" {
+  usecase "Cadastrar competição" as UC01
+  usecase "Inscrever atleta" as UC02
+  usecase "Alocar local" as UC03
+  usecase "Verificar disponibilidade de local" as UC04
+  usecase "Registrar resultados" as UC05
+  usecase "Gerar relatório de medalhas" as UC06
+  usecase "Consultar competições disponíveis" as UC07
+  usecase "Consultar classificação de atleta" as UC08
+  usecase "Listar atletas de uma competição" as UC09
+  usecase "Consultar medalhas de um país" as UC10
+}
+
+ADM --> UC01
+ADM --> UC03
+ADM --> UC04
+ADM --> UC05
+ADM --> UC06
+ADM --> UC08
+ADM --> UC09
+ADM --> UC10
+
+ATL --> UC02
+ATL --> UC07
+ATL --> UC08
+
+USR --> UC10
+
+UC03 .> UC04 : «include»
+UC05 .> UC06 : «include»
+UC09 .> UC02 : «extend»
+
+@enduml
